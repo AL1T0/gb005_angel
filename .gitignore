@@ -1,0 +1,8 @@
+main/keys.h
+build/
+sdkconfig
+sdkconfig.old
+main/att.pem
+sdkconfig.ci
+main/Kconfig.projbuild
+.vscode
