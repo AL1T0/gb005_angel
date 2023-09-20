@@ -44,6 +44,8 @@
 
 #include <esp_timer.h>
 
+#include "driver/uart.h"
+#include "string.h"
 #include "driver/gpio.h"
 #include "owb.h"
 #include "owb_rmt.h"
@@ -55,14 +57,29 @@
 #define GPIO_DS18B20_0       (5)
 #define DS18B20_RESOLUTION   (DS18B20_RESOLUTION_12_BIT)
 QueueHandle_t temperature_queue;
-
+SemaphoreHandle_t mqtt_semaphore;
 // Define the pins for controlling relay outputs
-#define RELAY_1 25
-#define RELAY_2 32
+#define RELAY_1 (GPIO_NUM_25)
+#define RELAY_2 (GPIO_NUM_32)
 
 // Define variables to store the output states
 bool relay1_state = false;
 bool relay2_state = false;
+
+//UART parameters
+static const int RX_BUF_SIZE = 1024;
+SemaphoreHandle_t uart_semaphore;
+QueueHandle_t CO2_out_queue;
+
+//UART pins for CO2 out sensor
+#define TXDi_PIN (GPIO_NUM_23)
+#define RXDi_PIN (GPIO_NUM_19)
+#define UART_MHZin (UART_NUM_1)
+
+//UART pins for CO2 out sensor
+#define TXDO_PIN (GPIO_NUM_16)
+#define RXDO_PIN (GPIO_NUM_17)
+#define UART_MHZout (UART_NUM_2)
 
 static const char *IO = "I/O TEST";
 static const char *TAG = "MQTT_TEST";
@@ -162,11 +179,12 @@ static void send_payload_task(void *pvParameters){
     //const TickType_t delay_ms = 5000 / portTICK_PERIOD_MS; // Send measurements every 5 seconds
 
     const char *temperature_topic = MAKER_TOPIC_TEMP;
-    const char *payload_format = "{\"value\":%.2f}";
+    const char *payload_format_t = "{\"value\":%.2f}";
     char payload[128];
     float temperature;
     while (xQueueReceive(temperature_queue, &temperature, portMAX_DELAY)) {
-        int payload_length = snprintf(payload, sizeof(payload), payload_format, temperature);
+        xSemaphoreTake(mqtt_semaphore, 0);
+        int payload_length = snprintf(payload, sizeof(payload), payload_format_t, temperature);
         int msg_id = esp_mqtt_client_publish(client, temperature_topic, payload, payload_length, 0, 0);
         if (msg_id < 0) {
             ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
@@ -175,6 +193,32 @@ static void send_payload_task(void *pvParameters){
             vTaskDelete(NULL);
         }
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+        xSemaphoreGive(mqtt_semaphore);
+    }
+}
+
+static void send_CO2_task(void *pvParameters){    
+    
+    esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t)pvParameters;
+    //const TickType_t delay_ms = 5000 / portTICK_PERIOD_MS; // Send measurements every 5 seconds
+
+    const char *CO2_out_topic = MAKER_TOPIC_CO2o;
+    const char *payload_format_CO2 = "{\"value\":%d}";
+    char payload[128];
+    uint16_t CO2_out;
+
+    while (xQueueReceive(CO2_out_queue, &CO2_out, portMAX_DELAY)) {
+        xSemaphoreTake(mqtt_semaphore, 0);
+        int payload_length = snprintf(payload, sizeof(payload), payload_format_CO2, CO2_out);
+        int msg_id = esp_mqtt_client_publish(client, CO2_out_topic, payload, payload_length, 0, 0);
+        if (msg_id < 0) {
+            ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
+
+            // Delete the task if there was an error
+            vTaskDelete(NULL);
+        }
+        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+        xSemaphoreGive(mqtt_semaphore);
     }
 }
 
@@ -200,6 +244,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         msg_id = esp_mqtt_client_subscribe(client, MAKER_TOPIC_CMD, 0);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
         xTaskCreate(&send_payload_task, "send_payload_task", 4096, client, configMAX_PRIORITIES - 1, NULL);
+        xTaskCreate(&send_CO2_task, "send_CO2_task", 4096, client, configMAX_PRIORITIES - 1, NULL);
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
@@ -274,13 +319,75 @@ static void mqtt_app_start(void)
     esp_mqtt_client_start(client);
 }
 
+//CO2 readings
+void UART_init(uart_port_t UART_num, int RXD_PIN, int TXD_PIN) {
+    const uart_config_t uart_config = {
+        .baud_rate = 9600,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    // We won't use a buffer for sending data.
+    uart_driver_install(UART_num, RX_BUF_SIZE * 2, 0, 0, NULL, 0);
+    uart_param_config(UART_num, &uart_config);
+    uart_set_pin(UART_num, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+}
+
+static void tx_task(void *arg)
+{
+    static const char *TX_TASK_TAG = "TX_TASK";
+    esp_log_level_set(TX_TASK_TAG, ESP_LOG_INFO);
+
+    uint8_t getppm[9] = {0xff, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
+
+    while (1) {
+        // Send the getppm array over UART
+        const int txBytes = uart_write_bytes(UART_NUM_1, (const char*)getppm, sizeof(getppm));
+        
+        if (txBytes == sizeof(getppm)) {
+            ESP_LOGI(TX_TASK_TAG, "Sent %d bytes", txBytes);
+        } else {
+            ESP_LOGW(TX_TASK_TAG, "Failed to send %d bytes", sizeof(getppm));
+        }
+
+        // Give the semaphore to signal that TX is done
+        xSemaphoreGive(uart_semaphore);
+
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+    }
+}
+
+static void rx_task(void *arg)
+{
+    static const char *RX_TASK_TAG = "RX_TASK";
+    esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
+    uint8_t* data = (uint8_t*) malloc(RX_BUF_SIZE+1);
+
+    while (1) {
+        // Wait for the semaphore, indicating that TX is done
+        if (xSemaphoreTake(uart_semaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
+            const int rxBytes = uart_read_bytes(UART_NUM_1, data, RX_BUF_SIZE, 1000 / portTICK_PERIOD_MS);
+            if (rxBytes > 0) {      
+                uint16_t co2_ppm = ((uint16_t)data[2] << 8) | data[3];
+                int8_t temperature = (int8_t)data[4] - 40;
+
+                xQueueSend(CO2_out_queue, &co2_ppm, portMAX_DELAY);
+                ESP_LOGI(RX_TASK_TAG, "CO2: %u ppm, Temperature: %d°C", co2_ppm, temperature);
+            }
+        }
+    }
+    free(data);
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "[APP] Startup..");
     ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
-     esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
     esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
     esp_log_level_set("MQTT_EXAMPLE", ESP_LOG_VERBOSE);
@@ -302,8 +409,34 @@ void app_main(void)
 
     // Initialize GPIO pins for controlling outputs
     gpio_init();
+
+    // Initialize UART
+    UART_init(UART_NUM_1, RXDO_PIN, TXDO_PIN);
     
+    // 
     temperature_queue = xQueueCreate(1, sizeof(float));
-    xTaskCreate(&DS18B20_task, "DS18B20_task", 4096, NULL, 5, NULL);
+    CO2_out_queue = xQueueCreate(1, sizeof(uint16_t));
+
+    //UART// Initialize the semaphore to 0 (signifying not available)
+    // Create the semaphore
+    uart_semaphore = xSemaphoreCreateBinary();
+
+    if (uart_semaphore == NULL) {
+        ESP_LOGE("APP_MAIN", "Failed to create semaphore");
+        return;
+    }
+
+    mqtt_semaphore = xSemaphoreCreateBinary();
+
+    if (mqtt_semaphore == NULL) {
+        ESP_LOGE("APP_MAIN", "Failed to create semaphore");
+        return;
+    }
+
+    // Initialize the semaphore to 0 (signifying not available)
+    xSemaphoreTake(uart_semaphore, 0);
+    xTaskCreate(DS18B20_task, "DS18B20_task", 4096, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    xTaskCreate(tx_task, "uart_tx_task", 1024*2, NULL, configMAX_PRIORITIES-2, NULL);
     mqtt_app_start();
 }
