@@ -3,9 +3,43 @@
 
 # GB005 Firmware 
 
-This application connects to the broker api.allthingstalk.io (AllThingsTalk IoT Platform) using ssl transport and subscribes to the compressor command topic, then reads temperature, CO2, pH and light sensors every 30 seconds and publishes the values to specific topics for each measurment.
+This application connects to the broker _api.allthingstalk.io_ ([AllThingsTalk IoT Platform](https://maker.allthingstalk.com/)) using ssl transport. 
 
+It subscribes to the compressor command topic and starts reading temperature/CO<sub>2</sub> sensors and digital outputs every 30 seconds and then publishes the values to specific topics for each measurment.
+
+When there's data published to the compressor command topic, it turns on/off two digital outputs wired to a relay module according to the command sent from the platform.
+
+## Wiring
+![Circuit Diagram](img/connections.png)
+
+An external 5 V power supply should be used.
+
+### Wriring the DS18B20 sensor:
+- Vdd to the board VCC pin (5 V)
+- GND to the board GND pin
+- DQ to the board Digital Pin IO5
+- A 4k7 pull-up resistor has to be connected between IO5 pin and board's 3.3 V pin
+
+### Wiring the MH-Z19B sensor to the ESP-32 module:
+- Vin to the board VCC pin (5 V)
+- GND to the board GND pin
+- Tx to the board Digital Pin IO17 (green cable if using JST connector)
+- Rx to the board Digital Pin IO16 (blue cable if using JST connector)
+- No other MH-Z19 pins are used
+
+## Used Libraries
+
+### MQTT
 This application is based on the ESP-MQTT SSL Sample application. It uses ESP-MQTT library which implements mqtt client to connect to mqtt broker.
+
+### DS18B20 Temperature Sensor
+To read temperature it uses David Antliff's [example application for the Maxim Integrated DS18B20 Programmable Resolution 1-Wire Digital Thermometer device](https://github.com/DavidAntliff/esp32-ds18b20-example).
+
+### MHZ-19B CO<sub>2</sub> Sensor
+To read CO<sub>2</sub> it uses a partially ported library of the [Arduino IDE library for operating the MH-Z19 and MH-Z19B CO2 sensor](https://github.com/crisap94/MHZ19/tree/master). 
+Currently it only works to read data from an MH-Z19 sensor connected to a specific UART serial port, but more functions can be enabled to fully control the sensor's parameters such as calibration. 
+PWM CO<sub>2</sub> reading is **not** implemented.
+The port was done by [Leopoldo Zimpers](https://github.com/lzimperz/) and then adapted to the application.
 
 ## How to use
 
@@ -16,9 +50,9 @@ This program was designed to run on a WeMos D1 Mini ESP32 board, but can be adap
 ### Configure the project
 
 * Open the project configuration menu (`idf.py menuconfig`)
-* Configure Wi-Fi or Ethernet under "Example Connection Configuration" menu. See "Establishing Wi-Fi or Ethernet Connection" section in [examples/protocols/README.md](../../README.md) for more details.
-
-CA certificate for this application have to be requested to AllThingsTalk support and should be saved in the project directory as "att.pem".
+* Configure Wi-Fi or Ethernet under "Example Connection Configuration" menu. See "Establishing Wi-Fi or Ethernet Connection" section in `examples/protocols/README.md` of the ESP-IDF library for more details.
+* For this particular board disable the brownout detection, because it seems to have voltage level issues that make the processor to restart constantly when it tries to connect to a WI-FI Network.
+* CA certificate for this application have to be requested to AllThingsTalk support and has to be saved in the `main` directory as "att.pem".
 
 ### Build and Flash
 
@@ -29,8 +63,6 @@ idf.py -p PORT flash monitor
 ```
 
 (To exit the serial monitor, type ``Ctrl-]``.)
-
-See the Getting Started Guide for full steps to configure and use ESP-IDF to build projects.
 
 ## Example Output
 
