@@ -31,13 +31,13 @@ void sensors_reading_task(void *pvParameters){
         // Get DS18B20 temperature
         ds18b20_convert_and_read_temp(DSB, &temp);
         //printf("\nTemperature readings (degrees C):\n");
-        //printf("    T: %.3f degC\n", temp);
+        printf("    T: %.3f degC\n", temp);
         measurement.temperature = temp;
 
         // Get CO2 reading
         co2_out_reading = getMeasurement(UART_MHZout);
         measurement.co2o = co2_out_reading.co2_ppm;
-        //printf("    CO2 Level: %d ppm\n", co2_out_reading.co2_ppm);
+        printf("    CO2 Level: %d ppm\n", co2_out_reading.co2_ppm);
 
         /* TO DO: add the reading of the second CO2 sensor*/
         
@@ -46,10 +46,10 @@ void sensors_reading_task(void *pvParameters){
 
         if (state == 1) {
             measurement.relay_state = true;
-            //printf("    Digital output is HIGH (%d)\n", state);
+            printf("    Digital output is HIGH (%d)\n", state);
         } else {
             measurement.relay_state = false;
-            //printf("    Digital output is LOW (%d)\n", state);
+            printf("    Digital output is LOW (%d)\n", state);
         }
 
         //Send the data to the measurement queue

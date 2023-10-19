@@ -10,22 +10,28 @@ It subscribes to the compressor command topic and starts reading temperature/CO<
 When there's data published to the compressor command topic, it turns on/off two digital outputs wired to a relay module according to the command sent from the platform.
 
 ## Wiring
-![Circuit Diagram](img/connections.png)
+![Circuit Diagram](img/wiring.png)
 
-An external 5 V power supply should be used.
+An external 5 V power supply must be used.
 
 ### Wriring the DS18B20 sensor:
-- Vdd to the board VCC pin (5 V)
-- GND to the board GND pin
-- DQ to the board Digital Pin IO5
-- A 4k7 pull-up resistor has to be connected between IO5 pin and board's 3.3 V pin
+- Vdd <- VCC pin (5 V)
+- GND -> GND pin
+- DQ <-> Digital Pin IO5
+- A 4.7 kΩ pull-up resistor must be connected between IO5 and 3.3 V pins
 
 ### Wiring the MH-Z19B sensor to the ESP-32 module:
-- Vin to the board VCC pin (5 V)
-- GND to the board GND pin
-- Tx to the board Digital Pin IO17 (green cable if using JST connector)
-- Rx to the board Digital Pin IO16 (blue cable if using JST connector)
+- Vin <- VCC pin (5 V)
+- GND -> GND pin
+- Tx <-> IO17 (green cable if using JST connector)
+- Rx <-> IO16 (blue cable if using JST connector)
 - No other MH-Z19 pins are used
+
+## Wiring the relay module:
+- D+ <- VCC pin (5 V)
+- D- -> GND pin
+- IN1 <- IO25
+- IN2 <- IO32
 
 ## Used Libraries
 

@@ -89,16 +89,16 @@ void writeCommand_wait_resp(uint8_t cmd[], uint8_t *response, uint8_t port)
 		esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
 		uint8_t* data = (uint8_t*) malloc(RX_BUF_SIZE+1);
 		while (i < WAIT_READ_TIMES) {
-			const int rxBytes = uart_read_bytes(port, data, RX_BUF_SIZE, 250 / portTICK_PERIOD_MS);
+			const int rxBytes = uart_read_bytes(port, data, RX_BUF_SIZE, WAIT_READ_DELAY / portTICK_PERIOD_MS);
 			if (rxBytes > 0) {
 				data[rxBytes] = 0;
 				//ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
 				//ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, rxBytes, ESP_LOG_INFO);
 				memcpy(response, data, RESPONSE_CNT);
 				//printf("info: sensor data received.");
+				free(data);
 				return;
-			}
-			else {
+			} else {
 				i++;
 			}
 		}
