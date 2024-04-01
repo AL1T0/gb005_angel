@@ -6,3 +6,4 @@ main/att.pem
 sdkconfig.ci
 main/Kconfig.projbuild
 .vscode
+main/emqx.pem

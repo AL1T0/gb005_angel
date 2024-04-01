@@ -2,6 +2,7 @@
 #define HEADERS_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -56,6 +57,7 @@ typedef struct {
     float temperature;
     uint16_t co2o;
     uint16_t co2i;
+    float pH;
     bool relay_state;
 } measurement_q_t;
 
@@ -77,9 +79,9 @@ typedef struct {
 #if CONFIG_BROKER_CERTIFICATE_OVERRIDDEN == 1
 static const uint8_t mqtt_crt_start[]  = "-----BEGIN CERTIFICATE-----\n" CONFIG_BROKER_CERTIFICATE_OVERRIDE "\n-----END CERTIFICATE-----";
 #else
-extern const uint8_t mqtt_crt_start[]   asm("_binary_att_pem_start");
+extern const uint8_t mqtt_crt_start[]   asm("_binary_emqx_pem_start");//asm("_binary_att_pem_start");
 #endif
-extern const uint8_t mqtt_crt_end[]   asm("_binary_att_pem_start");
+extern const uint8_t mqtt_crt_end[]   asm("_binary_emqx_pem_start");//asm("_binary_att_pem_start");
 
 extern esp_mqtt_client_handle_t mqtt_client;
 

@@ -9,9 +9,11 @@ void mqtt_publish_task(void *pvParameters){
     
     esp_mqtt_client_handle_t mqtt_client = (esp_mqtt_client_handle_t)pvParameters;
 
-    const char *temperature_topic = MAKER_TOPIC_TEMP;
-    const char *co2_out_topic = MAKER_TOPIC_CO2o;
-    const char *output_topic = MAKER_TOPIC_COMP;
+    const char *temperature_topic = BROKER_TOPIC_TEMP;
+    const char *co2_out_topic = BROKER_TOPIC_CO2o;
+    const char *co2_in_topic = BROKER_TOPIC_CO2i;
+    const char *output_topic = BROKER_TOPIC_COMP;
+    const char *ph_topic = BROKER_TOPIC_pH;
 
     const char *payload_format_f = "{\"value\":%.2f}";
     const char *payload_format_i = "{\"value\":%d}";
@@ -33,9 +35,29 @@ void mqtt_publish_task(void *pvParameters){
             
             vTaskDelay(1 / portTICK_PERIOD_MS);
 
-            // CO2
+            // CO2 in
+            payload_length = snprintf(payload, sizeof(payload), payload_format_i, measurement.co2i);
+            msg_id = esp_mqtt_client_publish(mqtt_client, co2_in_topic, payload, payload_length, 0, 0);
+            if (msg_id < 0) {
+                ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
+
+                // Delete the task if there was an error
+                vTaskDelete(NULL);
+            }
+
+            // CO2 out
             payload_length = snprintf(payload, sizeof(payload), payload_format_i, measurement.co2o);
             msg_id = esp_mqtt_client_publish(mqtt_client, co2_out_topic, payload, payload_length, 0, 0);
+            if (msg_id < 0) {
+                ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
+
+                // Delete the task if there was an error
+                vTaskDelete(NULL);
+            }
+
+            // pH
+            payload_length = snprintf(payload, sizeof(payload), payload_format_f, measurement.pH);
+            msg_id = esp_mqtt_client_publish(mqtt_client, ph_topic, payload, payload_length, 0, 0);
             if (msg_id < 0) {
                 ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
 
@@ -81,7 +103,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_subscribe(mqtt_client, MAKER_TOPIC_CMD, 0);
+        msg_id = esp_mqtt_client_subscribe(mqtt_client, BROKER_TOPIC_CMD, 0);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
         xSemaphoreGive(mqtt_semaphore);
         break;
@@ -106,17 +128,22 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         cJSON *root = cJSON_Parse(event->data);
         if (root != NULL) {
-            cJSON *value = cJSON_GetObjectItem(root, "value");
-            if (value != NULL) {
-                if (cJSON_IsBool(value)) {
-                    bool output_value = cJSON_IsTrue(value);
-                    control_outputs(output_value);
+            cJSON *values = cJSON_GetObjectItem(root, "values");
+            if (values != NULL && cJSON_IsArray(values)) {
+                cJSON *valueItem = NULL;
+                cJSON_ArrayForEach(valueItem, values) {
+                    cJSON *v = cJSON_GetObjectItem(valueItem, "v");
+                    if (v != NULL && cJSON_IsBool(v)) {
+                        bool output_value = cJSON_IsTrue(v);
+                        control_outputs(output_value);
+                        break;
+                    }
                 }
             }
             cJSON_Delete(root);
         }
-
         break;
+
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
         if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
@@ -140,14 +167,14 @@ void mqtt_app_start(void)
 {
     const esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
-            .address.uri = "mqtts://api.allthingstalk.io",
+            .address.uri = BROKER_URI,
             .address.port = 8883,
             .verification.certificate = (const char *)mqtt_crt_start
         },
         .credentials = {
             .set_null_client_id = true,
-            .username = MAKER_USERNAME,
-            .authentication.password = MAKER_PASSWORD
+            .username = BROKER_USERNAME,
+            .authentication.password = BROKER_PASSWORD
         }
     };
 

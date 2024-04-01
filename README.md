@@ -3,7 +3,7 @@
 
 # GB005 Firmware 
 
-This application connects to the broker _api.allthingstalk.io_ ([AllThingsTalk IoT Platform](https://maker.allthingstalk.com/)) using ssl transport. 
+This application connects to an MQTT broker using ssl transport. 
 
 It subscribes to the compressor command topic and starts reading temperature/CO<sub>2</sub> sensors and digital outputs every 30 seconds and then publishes the values to specific topics for each measurment.
 
@@ -37,6 +37,7 @@ An external 5 V power supply must be used.
 
 ### MQTT
 This application is based on the ESP-MQTT SSL Sample application. It uses ESP-MQTT library which implements mqtt client to connect to mqtt broker.
+User can define broker connections parameters as shown in the `keys_example.h` and must add the pem certificate provided by the vendor in the project directory.
 
 ### DS18B20 Temperature Sensor
 To read temperature it uses David Antliff's [example application for the Maxim Integrated DS18B20 Programmable Resolution 1-Wire Digital Thermometer device](https://github.com/DavidAntliff/esp32-ds18b20-example).
