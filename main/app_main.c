@@ -21,14 +21,15 @@ SemaphoreHandle_t mqtt_semaphore;
 
 void app_main(void)
 {
-    ESP_LOGI(MQTT_TAG, "[APP] Startup..");
-    ESP_LOGI(MQTT_TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-    ESP_LOGI(MQTT_TAG, "[APP] IDF version: %s", esp_get_idf_version());
+    //ESP_LOGI(MQTT_TAG, "[APP] Startup..");
+    //ESP_LOGI(MQTT_TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+    //ESP_LOGI(MQTT_TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
     esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
     esp_log_level_set("MQTT_EXAMPLE", ESP_LOG_VERBOSE);
+    esp_log_level_set("SENSORS_READ", ESP_LOG_VERBOSE);
     esp_log_level_set("TRANSPORT_BASE", ESP_LOG_VERBOSE);
     esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
     esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);        

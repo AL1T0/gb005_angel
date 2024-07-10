@@ -26,8 +26,8 @@ void gpio_init() {
 // Function to control the outputs based on MQTT data
 void control_outputs(bool value) {
     // Set the GPIO pins based on the received value
-    gpio_set_level(GPIO_RELAY_1, value);
-    gpio_set_level(GPIO_RELAY_2, value);
+    gpio_set_level(GPIO_RELAY_1, value ? 0 : 1);
+    gpio_set_level(GPIO_RELAY_2, value ? 0 : 1);
 
     //NOTE: when output is LOW (0), current flows and the NO Switch closes/NC switch opens
     //For the projet we will use NC configuration

@@ -1,6 +1,8 @@
 
 #include "headers.h"
 
+const char *TAGs = "SENSORS_READ";
+
 void sensors_reading_task(void *pvParameters){
     // Create a 1-Wire bus, using the RMT timeslot driver
     OneWireBus * owb;
@@ -30,6 +32,9 @@ void sensors_reading_task(void *pvParameters){
 
         // Get DS18B20 temperature
         ds18b20_convert_and_read_temp(DSB, &temp);
+        
+        //ESP_LOGI(TAGs, "Temperature: %.3f °C",temp);
+        
         //printf("\nTemperature readings (degrees C):\n");
         //printf("    T: %.3f degC\n", temp);
         measurement.temperature = temp;
@@ -39,6 +44,7 @@ void sensors_reading_task(void *pvParameters){
         measurement.co2o = co2_out_reading.co2_ppm;
         measurement.co2i = co2_out_reading.co2_ppm + temp + 100; //Simulate CO2in
 
+        //ESP_LOGI(TAGs, "CO2 level: %d ppm",co2_out_reading.co2_ppm);
         //printf("    CO2 Level: %d ppm\n", co2_out_reading.co2_ppm);
 
         /* TO DO: add the reading of the second CO2 sensor*/
@@ -48,10 +54,12 @@ void sensors_reading_task(void *pvParameters){
 
         if (state == 1) {
             measurement.relay_state = true;
-            printf("    Digital output is HIGH (%d)\n", state);
+            //ESP_LOGI(TAGs, "Digital output is HIGH (%d)", state);
+            //printf("    Digital output is HIGH (%d)\n", state);
         } else {
             measurement.relay_state = false;
-            printf("    Digital output is LOW (%d)\n", state);
+            //ESP_LOGI(TAGs, "Digital output is LOW (%d)", state);
+            //printf("    Digital output is LOW (%d)\n", state);
         }
 
         // Simulate pH reading

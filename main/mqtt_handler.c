@@ -1,6 +1,6 @@
 #include "headers.h"
 
-const char *TAG = "MQTT_TEST";
+const char *TAG = "MQTT";
 
 esp_mqtt_client_handle_t mqtt_client;
 
@@ -32,6 +32,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
+            //ESP_LOGI(TAG, "Published temperature, msgid=%d", msg_id);
             
             vTaskDelay(1 / portTICK_PERIOD_MS);
 
@@ -44,6 +45,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
+            //ESP_LOGI(TAG, "Published CO2 in, msgid=%d", msg_id);
 
             // CO2 out
             payload_length = snprintf(payload, sizeof(payload), payload_format_i, measurement.co2o);
@@ -54,6 +56,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
+            //ESP_LOGI(TAG, "Published CO2 out, msgid=%d", msg_id);
 
             // pH
             payload_length = snprintf(payload, sizeof(payload), payload_format_f, measurement.pH);
@@ -64,6 +67,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
+            //ESP_LOGI(TAG, "Published pH, msgid=%d", msg_id);
 
             // Relay state
             if (measurement.relay_state) {
@@ -78,6 +82,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
+            //ESP_LOGI(TAG, "Published relay status, msgid=%d", msg_id);
 
             //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
             xSemaphoreGive(mqtt_semaphore);        
@@ -147,18 +152,18 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
         if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
-            ESP_LOGI(TAG, "Last error code reported from esp-tls: 0x%x", event->error_handle->esp_tls_last_esp_err);
-            ESP_LOGI(TAG, "Last tls stack error number: 0x%x", event->error_handle->esp_tls_stack_err);
-            ESP_LOGI(TAG, "Last captured errno : %d (%s)",  event->error_handle->esp_transport_sock_errno,
-                     strerror(event->error_handle->esp_transport_sock_errno));
+            //ESP_LOGI(TAG, "Last error code reported from esp-tls: 0x%x", event->error_handle->esp_tls_last_esp_err);
+            //SP_LOGI(TAG, "Last tls stack error number: 0x%x", event->error_handle->esp_tls_stack_err);
+            //ESP_LOGI(TAG, "Last captured errno : %d (%s)",  event->error_handle->esp_transport_sock_errno,
+            //         strerror(event->error_handle->esp_transport_sock_errno));
         } else if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
-            ESP_LOGI(TAG, "Connection refused error: 0x%x", event->error_handle->connect_return_code);
+            //ESP_LOGI(TAG, "Connection refused error: 0x%x", event->error_handle->connect_return_code);
         } else {
-            ESP_LOGW(TAG, "Unknown error type: 0x%x", event->error_handle->error_type);
+            //ESP_LOGW(TAG, "Unknown error type: 0x%x", event->error_handle->error_type);
         }
         break;
     default:
-        ESP_LOGI(TAG, "Other event id:%d", event->event_id);
+        //ESP_LOGI(TAG, "Other event id:%d", event->event_id);
         break;
     }
 }
@@ -178,7 +183,7 @@ void mqtt_app_start(void)
         }
     };
 
-    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+    //ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
