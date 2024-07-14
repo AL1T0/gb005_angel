@@ -17,6 +17,7 @@ void sensors_reading_task(void *pvParameters){
     ds18b20_init_solo(ds18b20_info, owb);          // only one device on bus
     float temp;
     measurement_t co2_out_reading;
+    measurement_t co2_in_reading;
     measurement_q_t measurement;
    
     while(1){    
@@ -40,30 +41,28 @@ void sensors_reading_task(void *pvParameters){
         measurement.temperature = temp;
 
         // Get CO2 reading
-        co2_out_reading = getMeasurement(UART_MHZout);
-        measurement.co2o = co2_out_reading.co2_ppm;
-        measurement.co2i = co2_out_reading.co2_ppm + temp + 100; //Simulate CO2in
+        //co2_out_reading = getMeasurement(UART_MHZout);
+        co2_in_reading = getMeasurement(UART_MHZin);
+        measurement.co2i = co2_in_reading.co2_ppm;
+        measurement.co2o = co2_in_reading.co2_ppm - temp - 100; //Simulate CO2out;
 
-        //ESP_LOGI(TAGs, "CO2 level: %d ppm",co2_out_reading.co2_ppm);
-        //printf("    CO2 Level: %d ppm\n", co2_out_reading.co2_ppm);
+        //ESP_LOGI(TAGs, "CO2 level: %d ppm",co2_in_reading.co2_ppm);
+        //printf("    CO2 Level: %d ppm\n", co2_in_reading.co2_ppm);
 
-        /* TO DO: add the reading of the second CO2 sensor*/
-        
+        // Get light sensor status
+        int light = gpio_get_level(GPIO_LIGHT);
+
+        measurement.light_state = (light == 0);
+        //ESP_LOGI(TAGs, "Light sensor input is (%d)", light);      
+
         // Get compressor relays status
         int state = gpio_get_level(GPIO_RELAY_2);
 
-        if (state == 1) {
-            measurement.relay_state = true;
-            //ESP_LOGI(TAGs, "Digital output is HIGH (%d)", state);
-            //printf("    Digital output is HIGH (%d)\n", state);
-        } else {
-            measurement.relay_state = false;
-            //ESP_LOGI(TAGs, "Digital output is LOW (%d)", state);
-            //printf("    Digital output is LOW (%d)\n", state);
-        }
+        measurement.relay_state = (state == 0);
+        //ESP_LOGI(TAGs, "Digital output is (%d)", state);
 
-        // Simulate pH reading
-        measurement.pH = (co2_out_reading.co2_ppm + temp)/100.0;
+        // Read ADC for pH measurement
+        measurement.pH = get_pH();
 
         //Send the data to the measurement queue
         xQueueSend(measurement_queue, &measurement, portMAX_DELAY);

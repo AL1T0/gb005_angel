@@ -14,75 +14,38 @@ void mqtt_publish_task(void *pvParameters){
     const char *co2_in_topic = BROKER_TOPIC_CO2i;
     const char *output_topic = BROKER_TOPIC_COMP;
     const char *ph_topic = BROKER_TOPIC_pH;
+    const char *light_topic = BROKER_TOPIC_LD;
+    const char *device_topic = BROKER_DEVICE;
 
-    const char *payload_format_f = "{\"value\":%.2f}";
-    const char *payload_format_i = "{\"value\":%d}";
-    const char *payload_format_b = "{\"value\":%s}";
-
-    char payload[128];
     measurement_q_t measurement;
 
     while (xQueueReceive(measurement_queue, &measurement, portMAX_DELAY)) {
         xSemaphoreTake(mqtt_semaphore,0);
-            int payload_length = snprintf(payload, sizeof(payload), payload_format_f, measurement.temperature);
-            int msg_id = esp_mqtt_client_publish(mqtt_client, temperature_topic, payload, payload_length, 0, 0);
+            // Create JSON object
+            cJSON *meas = cJSON_CreateObject();
+
+            // Añadir mediciones al objeto JSON sin prefijos
+            cJSON_AddNumberToObject(meas, "temperature", measurement.temperature);
+            cJSON_AddNumberToObject(meas, "CO2_in", measurement.co2i);
+            cJSON_AddNumberToObject(meas, "CO2_out", measurement.co2o);
+            cJSON_AddNumberToObject(meas, "pH", measurement.pH);
+            cJSON_AddStringToObject(meas, "relay_state", measurement.relay_state ? "true" : "false");
+            cJSON_AddStringToObject(meas, "light_state", measurement.light_state ? "true" : "false");
+
+            // Convertir objeto JSON a string
+            char *message = cJSON_PrintUnformatted(meas);
+
+            //ESP_LOGI(TAG, "Sending MQTT data...");
+
+            // Publica el mensaje
+            int msg_id = esp_mqtt_client_publish(mqtt_client, device_topic, message, 0, 1, 0);
             if (msg_id < 0) {
                 ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
-
-                // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
-            //ESP_LOGI(TAG, "Published temperature, msgid=%d", msg_id);
-            
-            vTaskDelay(1 / portTICK_PERIOD_MS);
 
-            // CO2 in
-            payload_length = snprintf(payload, sizeof(payload), payload_format_i, measurement.co2i);
-            msg_id = esp_mqtt_client_publish(mqtt_client, co2_in_topic, payload, payload_length, 0, 0);
-            if (msg_id < 0) {
-                ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
-
-                // Delete the task if there was an error
-                vTaskDelete(NULL);
-            }
-            //ESP_LOGI(TAG, "Published CO2 in, msgid=%d", msg_id);
-
-            // CO2 out
-            payload_length = snprintf(payload, sizeof(payload), payload_format_i, measurement.co2o);
-            msg_id = esp_mqtt_client_publish(mqtt_client, co2_out_topic, payload, payload_length, 0, 0);
-            if (msg_id < 0) {
-                ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
-
-                // Delete the task if there was an error
-                vTaskDelete(NULL);
-            }
-            //ESP_LOGI(TAG, "Published CO2 out, msgid=%d", msg_id);
-
-            // pH
-            payload_length = snprintf(payload, sizeof(payload), payload_format_f, measurement.pH);
-            msg_id = esp_mqtt_client_publish(mqtt_client, ph_topic, payload, payload_length, 0, 0);
-            if (msg_id < 0) {
-                ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
-
-                // Delete the task if there was an error
-                vTaskDelete(NULL);
-            }
-            //ESP_LOGI(TAG, "Published pH, msgid=%d", msg_id);
-
-            // Relay state
-            if (measurement.relay_state) {
-                payload_length = snprintf(payload, sizeof(payload), payload_format_b, "true"); // Represent true as a string
-            } else {
-                payload_length = snprintf(payload, sizeof(payload), payload_format_b, "false"); // Represent false as a string
-            }
-            msg_id = esp_mqtt_client_publish(mqtt_client, output_topic, payload, payload_length, 0, 0);
-            if (msg_id < 0) {
-                ESP_LOGE(TAG, "Failed to send publish, error=%d", msg_id);
-
-                // Delete the task if there was an error
-                vTaskDelete(NULL);
-            }
-            //ESP_LOGI(TAG, "Published relay status, msgid=%d", msg_id);
+            cJSON_Delete(meas);
+            free(message);
 
             //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
             xSemaphoreGive(mqtt_semaphore);        
@@ -128,8 +91,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
+        //printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+        //printf("DATA=%.*s\r\n", event->data_len, event->data);
 
         cJSON *root = cJSON_Parse(event->data);
         if (root != NULL) {

@@ -50,8 +50,8 @@ void app_main(void)
     gpio_init();
 
     // Initialize UART
+    UART_init(UART_MHZin, RXDi_PIN, TXDi_PIN);
     UART_init(UART_MHZout, RXDO_PIN, TXDO_PIN);
-    /* TO DO Initialize the second sensor UART*/
         
     // Queue for measurements
     measurement_queue = xQueueCreate(1, sizeof(measurement_q_t));

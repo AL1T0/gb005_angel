@@ -42,6 +42,9 @@
 #include "ds18b20.h"
 #include "MHZ19.h"
 
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+
 #include <cJSON.h>
 
 // Temperature sensor
@@ -59,6 +62,7 @@ typedef struct {
     uint16_t co2i;
     float pH;
     bool relay_state;
+    bool light_state;
 } measurement_q_t;
 
 // Define the pins for controlling relay outputs
@@ -68,12 +72,18 @@ typedef struct {
 //UART pins for CO2 out sensor
 #define TXDi_PIN (GPIO_NUM_23)
 #define RXDi_PIN (GPIO_NUM_19)
-#define UART_MHZin (UART_NUM_2)
+#define UART_MHZin (UART_NUM_1)
 
 //UART pins for CO2 out sensor
 #define TXDO_PIN (GPIO_NUM_16)
 #define RXDO_PIN (GPIO_NUM_17)
-#define UART_MHZout (UART_NUM_1)
+#define UART_MHZout (UART_NUM_2)
+
+// Define ADC input for pH sensor
+#define ADC1_CHANNEL (ADC1_CHANNEL_6)
+
+// Define light sensor input
+#define GPIO_LIGHT (GPIO_NUM_33)
 
 // PEM certificate for AllThingsTalk MQTT broker
 #if CONFIG_BROKER_CERTIFICATE_OVERRIDDEN == 1
@@ -90,9 +100,10 @@ void UART_init(uart_port_t UART_num, int RXD_PIN, int TXD_PIN);
 void control_outputs(bool value);
 void mqtt_app_start(void);
 void gpio_init(void);
+float get_pH(void);
 
 // Tasks
 void sensors_reading_task(void *pvParameters);
 void mqtt_publish_task(void *pvParameters);
 
-#endif
+#endif;
