@@ -85,6 +85,9 @@ typedef struct {
 // Define light sensor input
 #define GPIO_LIGHT (GPIO_NUM_33)
 
+// Define button input
+#define GPIO_BUTTON (GPIO_NUM_27)
+
 // PEM certificate for AllThingsTalk MQTT broker
 #if CONFIG_BROKER_CERTIFICATE_OVERRIDDEN == 1
 static const uint8_t mqtt_crt_start[]  = "-----BEGIN CERTIFICATE-----\n" CONFIG_BROKER_CERTIFICATE_OVERRIDE "\n-----END CERTIFICATE-----";
@@ -101,6 +104,8 @@ void control_outputs(bool value);
 void mqtt_app_start(void);
 void gpio_init(void);
 float get_pH(void);
+static void IRAM_ATTR sensor_isr_handler(void* arg);
+static void IRAM_ATTR button_isr_handler(void* arg);
 
 // Tasks
 void sensors_reading_task(void *pvParameters);
