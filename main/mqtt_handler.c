@@ -32,7 +32,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
-            //ESP_LOGI(TAG, "Published temperature, msgid=%d", msg_id);
+            ESP_LOGI(TAG, "Published temperature, msgid=%d", msg_id);
             
             vTaskDelay(1 / portTICK_PERIOD_MS);
 
@@ -45,7 +45,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
-            //ESP_LOGI(TAG, "Published CO2 in, msgid=%d", msg_id);
+            ESP_LOGI(TAG, "Published CO2 in, msgid=%d", msg_id);
 
             // CO2 out
             payload_length = snprintf(payload, sizeof(payload), payload_format_i, measurement.co2o);
@@ -56,7 +56,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
-            //ESP_LOGI(TAG, "Published CO2 out, msgid=%d", msg_id);
+            ESP_LOGI(TAG, "Published CO2 out, msgid=%d", msg_id);
 
             // pH
             payload_length = snprintf(payload, sizeof(payload), payload_format_f, measurement.pH);
@@ -67,7 +67,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
-            //ESP_LOGI(TAG, "Published pH, msgid=%d", msg_id);
+            ESP_LOGI(TAG, "Published pH, msgid=%d", msg_id);
 
             // Relay state
             if (measurement.relay_state) {
@@ -82,7 +82,7 @@ void mqtt_publish_task(void *pvParameters){
                 // Delete the task if there was an error
                 vTaskDelete(NULL);
             }
-            //ESP_LOGI(TAG, "Published relay status, msgid=%d", msg_id);
+            ESP_LOGI(TAG, "Published relay status, msgid=%d", msg_id);
 
             //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
             xSemaphoreGive(mqtt_semaphore);        
@@ -183,7 +183,7 @@ void mqtt_app_start(void)
         }
     };
 
-    //ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);

@@ -33,7 +33,7 @@ void sensors_reading_task(void *pvParameters){
         // Get DS18B20 temperature
         ds18b20_convert_and_read_temp(DSB, &temp);
         
-        //ESP_LOGI(TAGs, "Temperature: %.3f °C",temp);
+        ESP_LOGI(TAGs, "Temperature: %.3f °C",temp);
         
         //printf("\nTemperature readings (degrees C):\n");
         //printf("    T: %.3f degC\n", temp);
@@ -42,28 +42,20 @@ void sensors_reading_task(void *pvParameters){
         // Get CO2 reading
         co2_out_reading = getMeasurement(UART_MHZout);
         measurement.co2o = co2_out_reading.co2_ppm;
-        measurement.co2i = co2_out_reading.co2_ppm + temp + 100; //Simulate CO2in
+        measurement.co2i = co2_out_reading.co2_ppm + temp*10.0; //Simulate CO2in
 
-        //ESP_LOGI(TAGs, "CO2 level: %d ppm",co2_out_reading.co2_ppm);
+        ESP_LOGI(TAGs, "CO2 level: %d ppm",co2_out_reading.co2_ppm);
         //printf("    CO2 Level: %d ppm\n", co2_out_reading.co2_ppm);
 
         /* TO DO: add the reading of the second CO2 sensor*/
         
         // Get compressor relays status
         int state = gpio_get_level(GPIO_RELAY_2);
-
-        if (state == 1) {
-            measurement.relay_state = true;
-            //ESP_LOGI(TAGs, "Digital output is HIGH (%d)", state);
-            //printf("    Digital output is HIGH (%d)\n", state);
-        } else {
-            measurement.relay_state = false;
-            //ESP_LOGI(TAGs, "Digital output is LOW (%d)", state);
-            //printf("    Digital output is LOW (%d)\n", state);
-        }
+        measurement.relay_state = (state == 0);
+        ESP_LOGI(TAGs, "Digital output is (%d)", state);
 
         // Simulate pH reading
-        measurement.pH = (co2_out_reading.co2_ppm + temp)/100.0;
+        measurement.pH = (co2_out_reading.co2_ppm - temp*10.0)/100.0;
 
         //Send the data to the measurement queue
         xQueueSend(measurement_queue, &measurement, portMAX_DELAY);
